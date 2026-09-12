@@ -54,10 +54,10 @@
   nav{
     position:sticky;top:0;z-index:5;
     background:var(--wood-dark);
-    padding:8px 0 10px;display:flex;gap:6px;
+    padding:8px 0 10px;display:flex;gap:6px;flex-wrap:wrap;
   }
   nav button{
-    flex:1;font:600 14px/1.15 "Archivo",Arial,sans-serif;color:#c9b6a5;
+    flex:1 1 28%;font:600 14px/1.15 "Archivo",Arial,sans-serif;color:#c9b6a5;
     background:var(--wood);border:1px solid var(--wood-line);border-radius:10px;
     padding:12px 4px;cursor:pointer;
   }
@@ -116,6 +116,37 @@
     margin-top:14px;font:600 14px "Archivo",Arial,sans-serif;background:none;
     border:1px solid var(--paper-line);color:var(--ink-soft);border-radius:9px;padding:10px 14px;cursor:pointer;
   }
+
+  #v-naam{
+    width:100%;font:400 17px "Archivo",Arial,sans-serif;color:var(--ink);
+    background:#fff;border:1px solid var(--paper-line);border-radius:10px;padding:13px 14px;
+  }
+  #v-naam:focus-visible{outline:3px solid var(--neon);outline-offset:1px}
+  .seg{display:flex;gap:8px;margin:10px 0 0}
+  .seg-btn{
+    flex:1;font:600 15px "Archivo",Arial,sans-serif;color:var(--ink-soft);
+    background:#fff;border:1px solid var(--paper-line);border-radius:10px;padding:12px 6px;cursor:pointer;
+  }
+  .seg-btn.is-on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  .big{
+    width:100%;margin:10px 0 0;font:600 16px "Archivo",Arial,sans-serif;
+    background:var(--ink);color:var(--paper);border:0;border-radius:10px;padding:14px;cursor:pointer;
+  }
+  .big.send{background:#1f7a4d;color:#fff;margin-top:16px}
+  .big:disabled{opacity:.45;cursor:default}
+  .vitem{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--paper-line)}
+  .vitem:last-child{border-bottom:0}
+  .vitem .txt{flex:1;font-size:16px}
+  .vitem .txt small{display:block;color:var(--ink-soft);font-size:13.5px;margin-top:2px}
+  .tag{font-size:12.5px;font-weight:600;border-radius:6px;padding:4px 8px;white-space:nowrap}
+  .tag.op{background:var(--neon);color:#fff}
+  .tag.bijna{background:#e9c46a;color:#3a2c08}
+  .vitem .del{
+    background:none;border:1px solid var(--paper-line);color:var(--ink-soft);
+    border-radius:8px;width:34px;height:34px;font-size:17px;line-height:1;cursor:pointer;flex:0 0 auto;
+  }
+  .vempty{padding:16px 0 4px;color:var(--ink-soft);font-size:15px}
+  #v-list{margin-top:18px}
   footer{text-align:center;color:#7d6a5c;font-size:13px;padding:8px 0 0}
   [hidden]{display:none !important}
 </style>
@@ -138,6 +169,7 @@
   <button role="tab" id="tab-drank" aria-controls="panel-drank" aria-selected="false">Drank</button>
   <button role="tab" id="tab-zaal" aria-controls="panel-zaal" aria-selected="false">Zaal</button>
   <button role="tab" id="tab-sluiten" aria-controls="panel-sluiten" aria-selected="false">Open &amp; sluit</button>
+  <button role="tab" id="tab-voorraad" aria-controls="panel-voorraad" aria-selected="false">Wat is op</button>
 </nav>
 
 <!-- ETEN -->
@@ -359,6 +391,39 @@
 
 </section>
 
+
+<!-- VOORRAAD -->
+<section id="panel-voorraad" role="tabpanel" aria-labelledby="tab-voorraad" hidden>
+
+  <div class="ice-banner">
+    <strong>Iets op of bijna op? Zet het erin en stuur het door</strong>
+    <span>Het lijstje staat op jouw gsm. Pas als je op de groene knop duwt, ziet Andres het. Doe dat zeker voor je naar huis gaat.</span>
+  </div>
+
+  <div class="slip">
+    <h2>Wat is op</h2>
+    <p class="sub">Product intypen, kiezen of het op of bijna op is, en toevoegen.</p>
+
+    <input id="v-naam" type="text" placeholder="bv. kaassaus, Cristal, bierkaartjes" autocomplete="off">
+    <div class="seg" role="group" aria-label="Hoe erg is het">
+      <button type="button" class="seg-btn is-on" data-status="op">Op</button>
+      <button type="button" class="seg-btn" data-status="bijna">Bijna op</button>
+    </div>
+    <button type="button" id="v-add" class="big">Toevoegen aan de lijst</button>
+
+    <div id="v-list"></div>
+
+    <button type="button" id="v-send" class="big send">Doorsturen via WhatsApp</button>
+    <p class="sub" style="margin:12px 0 0">Aangevuld? Duw op het kruisje naast het product om het van de lijst te halen.</p>
+  </div>
+
+  <div class="quick">
+    <h2>Nog beter maken</h2>
+    <p>Wil je dat iedereen de lijst live in de app ziet, zonder doorsturen? Dan hangen we de app aan een Google Sheet. Zeg het en ik leg uit hoe.</p>
+  </div>
+
+</section>
+
 <footer>Cafetaria &amp; TC De Alk &middot; Koutermanstraat 2, Alken</footer>
 </div>
 
@@ -428,6 +493,93 @@
       box.appendChild(row);
     });
   });
+
+
+  // --- Wat is op ---
+  var VKEY = 'dealk-voorraad';
+  var vNaam = document.getElementById('v-naam');
+  var vList = document.getElementById('v-list');
+  var vAdd = document.getElementById('v-add');
+  var vSend = document.getElementById('v-send');
+  var status = 'op';
+  var items = [];
+  try { items = JSON.parse(localStorage.getItem(VKEY) || '[]') || []; } catch(e){ items = []; }
+
+  function vSave(){
+    try { localStorage.setItem(VKEY, JSON.stringify(items)); } catch(e){}
+  }
+  function dag(ts){
+    var d = new Date(ts);
+    return ('0'+d.getDate()).slice(-2) + '/' + ('0'+(d.getMonth()+1)).slice(-2) + ' om ' +
+           ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+  }
+  function vRender(){
+    vList.innerHTML = '';
+    if(!items.length){
+      var p = document.createElement('p');
+      p.className = 'vempty';
+      p.textContent = 'Nog niets op de lijst. Type hierboven wat er ontbreekt.';
+      vList.appendChild(p);
+      vSend.disabled = true;
+      return;
+    }
+    vSend.disabled = false;
+    items.forEach(function(it, i){
+      var row = document.createElement('div');
+      row.className = 'vitem';
+
+      var tag = document.createElement('span');
+      tag.className = 'tag ' + it.s;
+      tag.textContent = it.s === 'op' ? 'Op' : 'Bijna op';
+
+      var txt = document.createElement('div');
+      txt.className = 'txt';
+      txt.textContent = it.n;
+      var sm = document.createElement('small');
+      sm.textContent = 'toegevoegd ' + dag(it.t);
+      txt.appendChild(sm);
+
+      var del = document.createElement('button');
+      del.className = 'del';
+      del.type = 'button';
+      del.setAttribute('aria-label', it.n + ' van de lijst halen');
+      del.textContent = '\u00d7';
+      del.addEventListener('click', function(){
+        items.splice(i,1); vSave(); vRender();
+      });
+
+      row.appendChild(tag); row.appendChild(txt); row.appendChild(del);
+      vList.appendChild(row);
+    });
+  }
+
+  document.querySelectorAll('.seg-btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      status = b.getAttribute('data-status');
+      document.querySelectorAll('.seg-btn').forEach(function(o){ o.classList.toggle('is-on', o === b); });
+    });
+  });
+
+  function addItem(){
+    var n = vNaam.value.trim();
+    if(!n) { vNaam.focus(); return; }
+    items.unshift({n:n, s:status, t:Date.now()});
+    vNaam.value = '';
+    vSave(); vRender();
+  }
+  vAdd.addEventListener('click', addItem);
+  vNaam.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); addItem(); } });
+
+  vSend.addEventListener('click', function(){
+    if(!items.length) return;
+    var lijst = items.map(function(it){
+      return '- ' + it.n + ' (' + (it.s === 'op' ? 'OP' : 'bijna op') + ')';
+    }).join('\n');
+    var msg = 'Wat is op - De Alk\n' + lijst;
+    window.open('https://wa.me/32472201479?text=' + encodeURIComponent(msg), '_blank');
+  });
+
+  vRender();
 
   document.querySelectorAll('[data-reset]').forEach(function(btn){
     btn.addEventListener('click', function(){
